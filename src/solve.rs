@@ -12,7 +12,7 @@ use duckduckgeo::grid;
 
 
 #[derive(PartialOrd,PartialEq,Eq,Ord,Copy,Clone)]
-pub struct BotCollisionHash(usize,usize);
+struct BotCollisionHash(usize,usize);
 impl BotCollisionHash{
     fn new<T>(a:&T,b:&T)->BotCollisionHash{                
         let a=a as *const _ as usize;
@@ -27,7 +27,7 @@ impl BotCollisionHash{
 }
 
 #[derive(PartialOrd,PartialEq,Eq,Ord,Copy,Clone)]
-pub struct WallCollisionHash{
+struct WallCollisionHash{
     a:usize,
     dir:grid::CardDir
 }
