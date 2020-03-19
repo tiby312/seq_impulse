@@ -137,31 +137,6 @@ impl CollisionVelocitySolver{
             })
         };
 
-
-        //integrate forvces
-        //for b in tree.get_bots_mut().iter_mut() {
-        use rayon::prelude::*;
-        tree.get_bots_mut().par_iter_mut().for_each(|b|{
-            let vel=b.vel_mut();
-            if vel.is_nan(){
-                *vel=vec2same(0.0);
-            }
-
-            let mag2=vel.magnitude2();
-            let drag_force=mag2*0.005;
-            let ff=*vel/mag2.sqrt()*drag_force;
-            let a=*vel-ff;
-            if !a.is_nan(){
-                *vel=a;
-            }
-            let g=0.01;
-            let counter:f32=0.0;
-            *b.vel_mut()+=vec2(g*counter.cos(),g*counter.sin());
-        });
-
-
-    
-        
         for _ in 0..num_iterations{
 
             collision_list.for_every_pair_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
