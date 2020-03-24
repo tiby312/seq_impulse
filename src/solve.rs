@@ -1,11 +1,11 @@
 use axgeom::*;
-use axgeom::vec2same;
+
 use axgeom::Axis;
 use std::collections::BTreeMap;
 
 use axgeom::ordered_float::*;
 
-use super::*;
+
 
 
 use duckduckgeo::grid;
@@ -139,7 +139,7 @@ impl CollisionVelocitySolver{
 
         for _ in 0..num_iterations{
 
-            collision_list.for_every_pair_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
+            collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
                 let vel=*b.vel_mut()-*a.vel_mut();
                 let impulse=bias-vel.dot(offset_normal);
@@ -153,7 +153,7 @@ impl CollisionVelocitySolver{
                 *b.vel_mut()+=k;
             });     
 
-            wall_collisions.for_every_par(tree,|bot,wall|{
+            wall_collisions.for_every_mut_par(tree,|bot,wall|{
                 //dbg!(&wall);
                 for k in wall.collisions.iter_mut(){
                     if let &mut Some((bias,offset_normal,_dir,ref mut acc))=k{
@@ -175,8 +175,8 @@ impl CollisionVelocitySolver{
         self.last_wall_col.clear();
 
         let (ka2,ka3):(BTreeMap<_,_>,BTreeMap<_,_>)=rayon::join(||{
-            collision_list.iter(&tree).map(|(a,b,&(_,_,impulse))|{
-                (BotCollisionHash::new(a,b),impulse)
+            collision_list.get(&tree).iter().flat_map(|a|a.iter()).map(|(a,b,(_,_,impulse))|{
+                (BotCollisionHash::new(a,b),*impulse)
             }).collect()
         },
         ||{
