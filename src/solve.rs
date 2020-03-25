@@ -1,15 +1,8 @@
 use axgeom::*;
-
 use axgeom::Axis;
 use std::collections::BTreeMap;
-
 use axgeom::ordered_float::*;
-
-
-
-
 use duckduckgeo::grid;
-
 
 #[derive(PartialOrd,PartialEq,Eq,Ord,Copy,Clone)]
 struct BotCollisionHash(usize,usize);
@@ -31,16 +24,15 @@ struct WallCollisionHash{
     a:usize,
     dir:grid::CardDir
 }
+
 fn single_hash<T>(a:&T,dir:grid::CardDir)->WallCollisionHash{
     WallCollisionHash{a:a as *const _ as usize,dir}
-    //a as *const _ as usize
 }
 
 pub trait VelocitySolvable{
     fn pos(&self)->&Vec2<f32>;
     fn vel_mut(&mut self)->&mut Vec2<f32>;
 }
-
 
 pub struct CollisionVelocitySolver{
     last_bot_col:BTreeMap<BotCollisionHash,f32>,
@@ -87,7 +79,6 @@ impl CollisionVelocitySolver{
                 }
             })
         };
-
 
         //Package in one struct
         //so that there is no chance of mutating it twice
@@ -190,8 +181,5 @@ impl CollisionVelocitySolver{
 
         self.last_bot_col=ka2;
         self.last_wall_col=ka3;
-
-    
-
     }
 }
