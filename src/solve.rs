@@ -54,7 +54,7 @@ impl CollisionVelocitySolver{
     
         let mut collision_list={
             let ka3 = &self.last_bot_col;
-            tree.collect_collisions_list_par(|a,b|{
+            tree.collect_intersections_list_par(|a,b|{
                 let offset=*b.pos()-*a.pos();
                 let distance2=offset.magnitude2();
                 if distance2>0.00001 && distance2<diameter2{

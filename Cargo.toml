@@ -9,5 +9,5 @@ edition = "2018"
 [dependencies]
 rayon="*"
 axgeom = "1.6"
-duckduckgeo={path="../duckduckgeo"}
-dinotree_alg={path="../dinotree_alg"}
+duckduckgeo={git="https://github.com/tiby312/duckduckgeo"}
+dinotree_alg={git="https://github.com/tiby312/dinotree_alg"}
