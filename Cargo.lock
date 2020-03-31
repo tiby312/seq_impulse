@@ -85,8 +85,8 @@ dependencies = [
 
 [[package]]
 name = "dinotree_alg"
-version = "0.7.5"
-source = "git+https://github.com/tiby312/dinotree_alg#3fcf02c49297f638c61a8abccc83e05002f2b27c"
+version = "0.8.4"
+source = "git+https://github.com/tiby312/dinotree_alg#4b6193fd386668bdeb7d04520647f069198e6e27"
 dependencies = [
  "axgeom",
  "compt",
@@ -137,9 +137,9 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
-version = "0.1.8"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1010591b26bbfe835e9faeabeb11866061cc7dcebffd56ad7d0942d0e61aefd8"
+checksum = "725cf19794cf90aa94e65050cb4191ff5d8fa87a498383774c47b332e3af952e"
 dependencies = [
  "libc",
 ]

@@ -44,13 +44,13 @@ impl CollisionVelocitySolver{
         CollisionVelocitySolver{last_bot_col:BTreeMap::new(),last_wall_col:BTreeMap::new()}
     }
 
-    pub fn solve<A:Axis,K:Send+Sync,T:VelocitySolvable+Send+Sync>(
+    pub fn solve<A:Axis,T:VelocitySolvable+Send+Sync>(
         &mut self,
-        conv:impl Fn(&mut K)->&mut T+Send+Sync+Copy,
+        //conv:impl Fn(&mut K)->&mut T+Send+Sync+Copy,
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,K>){
+        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>){
         
         let diameter=radius*2.0;
         let diameter2=diameter*diameter;
@@ -62,7 +62,7 @@ impl CollisionVelocitySolver{
         let mut collision_list={
             let ka3 = &self.last_bot_col;
             tree.collect_intersections_list_par(|a,b|{
-                let (a,b)=(conv(a),conv(b));
+                
                 let offset=*b.pos()-*a.pos();
                 let distance2=offset.magnitude2();
                 if distance2>0.00001 && distance2<diameter2{
@@ -99,7 +99,7 @@ impl CollisionVelocitySolver{
             let ka3 = &self.last_wall_col;
 
             tree.collect_all_par(|rect,a|{
-                let a=conv(a);
+                
                 let arr=duckduckgeo::grid::collide::is_colliding(&walls,&grid_viewport,rect.as_ref(),radius);
                 let create_collision=|bot:&mut T,dir:grid::CardDir,seperation:f32,offset_normal:Vec2<f32>|{
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-seperation+allowed_penetration).min(0.0));
@@ -140,7 +140,7 @@ impl CollisionVelocitySolver{
         for _ in 0..num_iterations{
 
             collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
-                let (a,b)=(conv(a),conv(b));
+                
                 let vel=*b.vel_mut()-*a.vel_mut();
                 let impulse=bias-vel.dot(offset_normal);
                 
@@ -155,7 +155,7 @@ impl CollisionVelocitySolver{
 
             wall_collisions.for_every_mut_par(tree,|bot,wall|{
                 
-                let bot=conv(bot);
+                
                 for k in wall.collisions.iter_mut(){
                     if let &mut Some((bias,offset_normal,_dir,ref mut acc))=k{
                         
