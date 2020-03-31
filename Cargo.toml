@@ -11,3 +11,7 @@ rayon="*"
 axgeom = "1.6"
 duckduckgeo={git="https://github.com/tiby312/duckduckgeo"}
 dinotree_alg={git="https://github.com/tiby312/dinotree_alg"}
+
+
+[dev-dependencies]
+egaku2d="*"
