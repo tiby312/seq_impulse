@@ -69,17 +69,14 @@ fn single_hash<T>(a:&T,dir:grid::CardDir)->WallCollisionHash{
     WallCollisionHash{a:a as *const _ as usize,dir}
 }
 
-pub trait VelocitySolvable{
-    fn pos(&self)->&Vec2<f32>;
-    fn vel_mut(&mut self)->&mut Vec2<f32>;
-}
+
 
 pub struct CollisionVelocitySolver<T>{
     last_bot_col:BTreeMap<BotCollisionHash<T>,f32>,
     last_wall_col:BTreeMap<WallCollisionHash,f32>
 }
 
-impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
+impl<T:Send+Sync> CollisionVelocitySolver<T>{
     pub fn new()->CollisionVelocitySolver<T>{
         CollisionVelocitySolver{last_bot_col:BTreeMap::new(),last_wall_col:BTreeMap::new()}
     }
@@ -87,7 +84,9 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
     pub fn solve_no_walls<A:Axis>(
         &mut self,
         radius:f32,
-        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>){
+        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>,
+        pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
+        vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
 
         let diameter=radius*2.0;
         let diameter2=diameter*diameter;
@@ -101,7 +100,7 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
             let ka3 = &last_bot_col;
             tree.collect_intersections_list_par(|a,b|{
                 
-                let offset=*b.pos()-*a.pos();
+                let offset=*pos_func(b)-*pos_func(a);
                 let distance2=offset.magnitude2();
                 if distance2>0.00001 && distance2<diameter2{
                     let distance=distance2.sqrt();
@@ -113,8 +112,8 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
                     
                     let impulse=if let Some(&impulse)=ka3.get(&hash){ //TODO inefficient to check if its none every time
                         let k=offset_normal*impulse;
-                        *a.vel_mut()-=k;
-                        *b.vel_mut()+=k;
+                        *vel_func(a)-=k;
+                        *vel_func(b)+=k;
                         impulse
                     }else{
                         0.0
@@ -132,7 +131,7 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
 
             collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
           
-                let vel=*b.vel_mut()-*a.vel_mut();
+                let vel=*vel_func(b)-*vel_func(a);
                 let mass_normal=0.1;
                 let impulse=(bias-vel.dot(offset_normal))*mass_normal;
                 
@@ -146,8 +145,8 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
                 //let impulse=impulse.max(0.0);
 
                 let k=offset_normal*impulse;
-                *a.vel_mut()-=k;
-                *b.vel_mut()+=k;
+                *vel_func(a)-=k;
+                *vel_func(b)+=k;
             });     
         }
 
@@ -172,7 +171,9 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>){
+        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>,
+        pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
+        vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
         
         let diameter=radius*2.0;
         let diameter2=diameter*diameter;
@@ -184,7 +185,7 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
             let ka3 = &self.last_bot_col;
             tree.collect_intersections_list_par(|a,b|{
                 
-                let offset=*b.pos()-*a.pos();
+                let offset=*pos_func(b)-*pos_func(a);
                 let distance2=offset.magnitude2();
                 if distance2>0.00001 && distance2<diameter2{
                     let distance=distance2.sqrt();
@@ -195,8 +196,8 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
                     let hash=BotCollisionHash::new(a,b);
                     let impulse=if let Some(&impulse)=ka3.get(&hash){ //TODO inefficient to check if its none every time
                         let k=offset_normal*impulse;
-                        *a.vel_mut()-=k;
-                        *b.vel_mut()+=k;
+                        *vel_func(a)-=k;
+                        *vel_func(b)+=k;
                         impulse
                     }else{
                         0.0
@@ -227,7 +228,7 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
 
                     let impulse=if let Some(&impulse)=ka3.get(&single_hash(bot,dir)){ //TODO inefficient to check if its none every time
                         let k=offset_normal*impulse;
-                        *bot.vel_mut()+=k;
+                        *vel_func(bot)+=k;
                         impulse
                     }else{
                         0.0
@@ -262,7 +263,7 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
 
             collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
-                let vel=*b.vel_mut()-*a.vel_mut();
+                let vel=*vel_func(b)-*vel_func(a);
 
                 let mass=0.2;
                 let impulse=(bias-vel.dot(offset_normal))*mass;
@@ -272,8 +273,8 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
                 let impulse=*acc-p0;
                 
                 let k=offset_normal*impulse;
-                *a.vel_mut()-=k;
-                *b.vel_mut()+=k;
+                *vel_func(a)-=k;
+                *vel_func(b)+=k;
             });     
 
             wall_collisions.for_every_mut_par(tree,|bot,wall|{
@@ -282,13 +283,13 @@ impl<T:VelocitySolvable+Send+Sync> CollisionVelocitySolver<T>{
                 for k in wall.collisions.iter_mut(){
                     if let &mut Some((bias,offset_normal,_dir,ref mut acc))=k{
                         
-                        let impulse=bias-bot.vel_mut().dot(offset_normal);
+                        let impulse=bias-vel_func(bot).dot(offset_normal);
 
                         let p0=*acc;
                         *acc=(p0+impulse).max(0.0);
                         let impulse=*acc-p0;
 
-                        *bot.vel_mut()+=offset_normal*impulse;
+                        *vel_func(bot)+=offset_normal*impulse;
                     }
                 }; 
             })
