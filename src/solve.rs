@@ -101,18 +101,30 @@ impl<T:Send+Sync> CollisionVelocitySolver<T>{
         let mut collision_list={
             let ka3 = &self.last_bot_col;
             tree.collect_intersections_list_par(|a,b|{
-                
-                let offset=*pos_func(b)-*pos_func(a);
+                let p2=*pos_func(b);
+                let p1=*pos_func(a);
+                let offset=p2-p1;
                 let distance2=offset.magnitude2();
-                if distance2>0.00001 && distance2<diameter2{
+                if distance2<diameter2{
                     let distance=distance2.sqrt();
-                    let offset_normal=offset/distance;
+                    
+                    let offset_normal=if distance<0.00001{
+                        //Make a random direction
+                        let rot=p1.y*2.0-p1.x;
+                        vec2(rot.cos(),rot.sin())
+                    }else{
+                        offset/distance
+                    };
+
                     let separation=(diameter-distance)/2.0;
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-separation+allowed_penetration).min(0.0));
                     
                     let hash=BotCollisionHash::new(a,b);
                     let impulse=if let Some(&impulse)=ka3.get(&hash){ //TODO inefficient to check if its none every time
                         let k=offset_normal*impulse;
+                        let va=vel_func(a);
+                        let vb=vel_func(b);
+                        
                         *vel_func(a)-=k;
                         *vel_func(b)+=k;
                         impulse
