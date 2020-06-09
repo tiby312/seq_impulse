@@ -134,22 +134,13 @@ pub struct Bot {
     pos: Vec2<f32>,
     vel: Vec2<f32>
 }
-impl seq_impulse::VelocitySolvable for Bot{
-    #[inline(always)]
-    fn pos(&self)->&Vec2<f32>{
-        &self.pos
-    }
-    #[inline(always)]
-    fn vel_mut(&mut self)->&mut Vec2<f32>{
-        &mut self.vel
-    }
-}
+
 
 
 pub fn make_demo(dim: Rect<F32n>,canvas:&mut SimpleCanvas) -> Demo {
-    let num_bot = 3000;
+    let num_bot = 1000;
 
-    let radius = 3.0;
+    let radius = 6.0;
     let diameter=radius*2.0;
 
     let mut bots: Vec<_> = UniformRandGen::new(dim.inner_into())
@@ -235,7 +226,7 @@ pub fn make_demo(dim: Rect<F32n>,canvas:&mut SimpleCanvas) -> Demo {
         });
 
         //Solve velocities from collisions
-        solver.solve(radius,&grid_viewport,&walls,&mut tree);
+        solver.solve(radius,&grid_viewport,&walls,&mut tree,|a|&a.pos,|a|&mut a.vel);
         
         //integrate positions
         for b in tree.get_bots_mut().iter_mut() {
