@@ -6,121 +6,100 @@ use std::collections::BTreeMap;
 use axgeom::ordered_float::*;
 use duckduckgeo::grid;
 
-use bothash::BotCollisionHash;
-    mod bothash{
-        use serde::{Serialize, Deserialize};
-        use core::cmp::Ordering;
-        use core::marker::PhantomData;
-        #[derive(Hash,Serialize,Deserialize,Clone,Debug)]
-        pub struct BotCollisionHash<T>(u32,PhantomData<T>);
-        
-         impl<T> PartialEq for BotCollisionHash<T> {
-            fn eq(&self, other: &Self) -> bool {
-                self.0.eq(&other.0)
-            }
-        }
-        impl<T> Eq for BotCollisionHash<T> {}
-        impl<T> PartialOrd for BotCollisionHash<T>{
-            fn partial_cmp(&self, other: &Self) -> Option<Ordering>{
-                self.0.partial_cmp(&other.0)
-            }
-        }
-        impl<T> Ord for BotCollisionHash<T>{
-            fn cmp(&self, other: &Self) -> Ordering{
-                self.0.cmp(&other.0)
-            }
-        }
-        impl<T> BotCollisionHash<T>{
-            pub fn new(base:usize,a:&T,b:&T)->BotCollisionHash<T>{                
-                
-                let a=((a as *const _ as usize - base )/core::mem::size_of::<T>()) as u32;
-                let b=((b as *const _ as usize - base )/core::mem::size_of::<T>()) as u32;
-                
-                
-                let [a,b]=if a>b{ //TODO important that else defaults to not moving?
-                    [b,a]
-                }else{
-                    [a,b]
-                };
-                
-            
-                BotCollisionHash((a<<16) | b,PhantomData)
-            }
-        }
-    }
+    
+use core::cmp::Ordering;
+#[derive(Eq,PartialEq,Ord,PartialOrd,Hash,Serialize,Deserialize,Clone,Debug)]
+pub struct BotCollisionHash(u32);
 
-
-    /*
-#[derive(PartialOrd,PartialEq,Eq,Ord,Copy,Clone)]
-struct BotCollisionHash(usize,usize);
 impl BotCollisionHash{
-    fn new<T>(a:&T,b:&T)->BotCollisionHash{                
-        let a=a as *const _ as usize;
-        let b=b as *const _ as usize;
-        let [a,b]=if a<b{
-            [a,b]
-        }else{
+    fn new<T>(base:Fo<T>,a:&T,b:&T)->BotCollisionHash{                
+        
+        let a=((a as *const _ as usize - base.0 as usize )/core::mem::size_of::<T>()) as u32;
+        let b=((b as *const _ as usize - base.0 as usize )/core::mem::size_of::<T>()) as u32;
+        
+        
+        let [a,b]=if a>b{ //TODO important that else defaults to not moving?
             [b,a]
+        }else{
+            [a,b]
         };
-        BotCollisionHash(a,b)
+        
+    
+        BotCollisionHash((a<<16) | b)
     }
 }
-*/
 
-use core::marker::PhantomData;
 
-#[derive(Hash,Serialize,Deserialize,Debug,PartialOrd,PartialEq,Eq,Ord,Copy,Clone)]
-struct WallCollisionHashInner{
+
+#[derive(Eq,PartialEq,PartialOrd,Ord,Hash,Serialize,Deserialize,Debug,Copy,Clone)]
+struct WallCollisionHash{
     a:u16,
     dir:grid::CardDir
 }
 
-#[derive(Hash,Serialize,Deserialize,Debug,Copy,Clone)]
-struct WallCollisionHash<T>(
-    WallCollisionHashInner,
-    PhantomData<T>
-);
-use core::cmp::Ordering;
-
-impl<T> PartialEq for WallCollisionHash<T> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.eq(&other.0)
-    }
-}
-impl<T> Eq for WallCollisionHash<T> {}
-
-impl<T> PartialOrd for WallCollisionHash<T>{
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering>{
-        self.0.partial_cmp(&other.0)
-    }
-}
-impl<T> Ord for WallCollisionHash<T>{
-    fn cmp(&self, other: &Self) -> Ordering{
-        self.0.cmp(&other.0)
+impl WallCollisionHash{
+    fn new<T>(base:Fo<T>,a:&T,dir:grid::CardDir)->WallCollisionHash{
+        let a=((a as *const _ as usize - base.0 as usize) / core::mem::size_of::<T>()) as u16; 
+        WallCollisionHash{a,dir}
     }
 }
 
 
-fn single_hash<T>(base:usize,a:&T,dir:grid::CardDir)->WallCollisionHash<T>{
-    let a=((a as *const _ as usize - base) / core::mem::size_of::<T>()) as u16; 
-    WallCollisionHash(WallCollisionHashInner{a,dir},PhantomData)
+struct Fo<T>(*const T);
+
+unsafe impl<T> Send for Fo<T>{}
+unsafe impl<T> Sync for Fo<T>{}
+
+impl<T> Copy for Fo<T> {}
+impl<T> Clone for Fo<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
 }
 
 
 #[derive(Clone,Hash,Serialize,Deserialize,Debug)]
-pub struct CollisionVelocitySolver<T,K>{
-    last_bot_col:BTreeMap<BotCollisionHash<T>,K>,
-    last_wall_col:BTreeMap<WallCollisionHash<T>,K>
+pub struct CollisionVelocitySolver<K>{
+    last_bot_col:BTreeMap<BotCollisionHash,K>,
+    last_wall_col:BTreeMap<WallCollisionHash,K>
 }
 
-impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
-    pub fn new()->CollisionVelocitySolver<T,f32>{
+use core::convert::TryFrom;
+impl<B> CollisionVelocitySolver<B>{
+
+    #[inline(always)]
+    pub fn inner_try_into<A: TryFrom<B>>(self) -> Result<CollisionVelocitySolver<A>, A::Error> {
+        let CollisionVelocitySolver{last_bot_col,last_wall_col}=self;
+        
+        
+        //let mut last_bot_col_new:Vec<(BotCollisionHash,A)>=Vec::new();
+        let mut last_bot_col_new=BTreeMap::new();
+        for (a,b) in last_bot_col.into_iter(){
+            last_bot_col_new.insert(a,TryFrom::try_from(b)?);
+        }
+
+        let mut last_wall_col_new=BTreeMap::new();
+        for (a,b) in last_wall_col.into_iter(){
+            last_wall_col_new.insert(a,TryFrom::try_from(b)?);
+        }
+
+        
+
+        Ok(CollisionVelocitySolver{last_bot_col:last_bot_col_new,last_wall_col:last_wall_col_new})
+        
+
+
+    }
+}
+
+impl CollisionVelocitySolver<f32>{
+    pub fn new()->CollisionVelocitySolver<f32>{
         CollisionVelocitySolver{last_bot_col:BTreeMap::new(),last_wall_col:BTreeMap::new()}
     }
 
 
 
-    pub fn solve<A:Axis>(
+    pub fn solve<A:Axis,T:Send+Sync+core::fmt::Debug>(
         &mut self,
         radius:f32,
         grid_viewport:&grid::GridViewPort,
@@ -134,11 +113,11 @@ impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
         let bias_factor=0.3;
         let allowed_penetration=radius*0.2;
         let num_iterations=5;
-        let base=tree.get_bots().as_ptr() as usize;
+        let base=Fo(tree.get_bots().as_ptr());
 
         let mut collision_list={
             let ka3 = &self.last_bot_col;
-            tree.collect_intersections_list_par(|a:&mut T,b:&mut T|{
+            tree.collect_intersections_list_par(move |a:&mut T,b:&mut T|{
                 let p2=*pos_func(b);
                 let p1=*pos_func(a);
                 let offset=p2-p1;
@@ -190,13 +169,13 @@ impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
         let mut wall_collisions={
             let ka3 = &self.last_wall_col;
             
-            tree.collect_all_par(|rect,a|{
+            tree.collect_all_par(move |rect,a|{
                 
                 let arr=duckduckgeo::grid::collide::is_colliding(&walls,&grid_viewport,rect.as_ref(),radius);
                 let create_collision=|bot:&mut T,dir:grid::CardDir,seperation:f32,offset_normal:Vec2<f32>|{
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-seperation+allowed_penetration).min(0.0));
 
-                    let impulse=if let Some(&impulse)=ka3.get(&single_hash(base,bot,dir)){ //TODO inefficient to check if its none every time
+                    let impulse=if let Some(&impulse)=ka3.get(&WallCollisionHash::new(base,bot,dir)){ //TODO inefficient to check if its none every time
                         let k=offset_normal*impulse;
                         *vel_func(bot)+=k;
                         impulse
@@ -235,7 +214,7 @@ impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
 
             
             
-            collision_list.for_every_pair_mut(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
+            collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
                 let vel=*vel_func(b)-*vel_func(a);
 
@@ -254,7 +233,7 @@ impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
             });
                  
             
-            wall_collisions.for_every_mut(tree,|bot,wall|{
+            wall_collisions.for_every_mut_par(tree,|bot,wall|{
                 
                 
                 for k in wall.collisions.iter_mut(){
@@ -287,21 +266,13 @@ impl<T:Send+Sync+core::fmt::Debug> CollisionVelocitySolver<T,f32>{
                 (BotCollisionHash::new(base,*a,*b),*impulse)
             }).collect()
             
-            
-            /*
-            collision_list.get(&tree).iter().map(|(a,b,(_,_,impulse))|{
-                (BotCollisionHash::new(*a,*b),*impulse)
-            }).collect()
-            */
-            
-            
         },
         ||{
             
             wall_collisions.get(&tree).iter().flat_map(|(bot,wall)|{
                 let k=wall.collisions.iter().filter(|a|a.is_some()).map(|a|a.unwrap());
                 k.map(move |(_,_,dir,impulse)|{
-                    (single_hash(base,*bot,dir),impulse)
+                    (WallCollisionHash::new(base,*bot,dir),impulse)
                 })
             }).collect()
             
