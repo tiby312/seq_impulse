@@ -117,7 +117,8 @@ impl CollisionVelocitySolver<f32>{
 
         let mut collision_list={
             let ka3 = &self.last_bot_col;
-            tree.collect_intersections_list_par(move |a:&mut T,b:&mut T|{
+            //TODO add _par
+            tree.collect_intersections_list(move |a:&mut T,b:&mut T|{
                 let p2=*pos_func(b);
                 let p1=*pos_func(a);
                 let offset=p2-p1;
@@ -169,7 +170,8 @@ impl CollisionVelocitySolver<f32>{
         let mut wall_collisions={
             let ka3 = &self.last_wall_col;
             
-            tree.collect_all_par(move |rect,a|{
+            //TODO add _par
+            tree.collect_all(move |rect,a|{
                 
                 let arr=duckduckgeo::grid::collide::is_colliding(&walls,&grid_viewport,rect.as_ref(),radius);
                 let create_collision=|bot:&mut T,dir:grid::CardDir,seperation:f32,offset_normal:Vec2<f32>|{
@@ -189,7 +191,7 @@ impl CollisionVelocitySolver<f32>{
                         
                         let wall=match arr[1]{
                             Some((seperation,dir,offset_normal))=>{
-                                let seperation=seperation*2.0f32.sqrt(); //Since we are pushing diagonally dont want to over push.
+                                //let seperation=seperation*2.0f32.sqrt(); //Since we are pushing diagonally dont want to over push.
                                 let first=Some(create_collision(a,dir,seperation,offset_normal));
                                 let second=Some(create_collision(a,dir,seperation,offset_normal));
                                 WallCollision{collisions:[first,second]}
@@ -209,16 +211,16 @@ impl CollisionVelocitySolver<f32>{
         };
         
 
-        
+        let mass=0.2;
         for _ in 0..num_iterations{
 
             
-            
-            collision_list.for_every_pair_mut_par(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
+            //TODO add _par
+            collision_list.for_every_pair_mut(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
                 let vel=*vel_func(b)-*vel_func(a);
 
-                let mass=0.2;
+                
                 let impulse=(bias-vel.dot(offset_normal))*mass;
                 
                 let p0=*acc;
@@ -232,14 +234,14 @@ impl CollisionVelocitySolver<f32>{
                 *vel_func(b)+=k;
             });
                  
-            
-            wall_collisions.for_every_mut_par(tree,|bot,wall|{
+            //TODO add _par
+            wall_collisions.for_every_mut(tree,|bot,wall|{
                 
                 
                 for k in wall.collisions.iter_mut(){
                     if let &mut Some((bias,offset_normal,_dir,ref mut acc))=k{
                         
-                        let impulse=bias-vel_func(bot).dot(offset_normal);
+                        let impulse=(bias-vel_func(bot).dot(offset_normal))*mass;
 
                         let p0=*acc;
                         *acc=(p0+impulse).max(0.0);
@@ -260,12 +262,27 @@ impl CollisionVelocitySolver<f32>{
         self.last_bot_col.clear();
         self.last_wall_col.clear();
 
+
+        let ka2=collision_list.get(&tree).iter().map(|(a,b,(_,_,impulse))|{
+            (BotCollisionHash::new(base,*a,*b),*impulse)
+        }).collect();
+
+        let ka3=wall_collisions.get(&tree).iter().flat_map(|(bot,wall)|{
+            let k=wall.collisions.iter().filter(|a|a.is_some()).map(|a|a.unwrap());
+            k.map(move |(_,_,dir,impulse)|{
+                (WallCollisionHash::new(base,*bot,dir),impulse)
+            })
+        }).collect();
+
+        /*
         let (ka2,ka3):(BTreeMap<_,_>,_)=rayon::join(||{
+            
             
             collision_list.get(&tree).iter().flat_map(|a|a.iter()).map(|(a,b,(_,_,impulse))|{
                 (BotCollisionHash::new(base,*a,*b),*impulse)
             }).collect()
             
+           
         },
         ||{
             
@@ -277,6 +294,7 @@ impl CollisionVelocitySolver<f32>{
             }).collect()
             
         });
+        */
 
         self.last_bot_col=ka2;
         self.last_wall_col=ka3;
