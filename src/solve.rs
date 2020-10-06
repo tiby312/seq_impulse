@@ -6,8 +6,7 @@ use std::collections::BTreeMap;
 use axgeom::ordered_float::*;
 use duckduckgeo::grid;
 
-    
-use core::cmp::Ordering;
+
 #[derive(Eq,PartialEq,Ord,PartialOrd,Hash,Serialize,Deserialize,Clone,Debug)]
 pub struct BotCollisionHash(u32);
 
@@ -71,8 +70,6 @@ impl<B> CollisionVelocitySolver<B>{
     pub fn inner_try_into<A: TryFrom<B>>(self) -> Result<CollisionVelocitySolver<A>, A::Error> {
         let CollisionVelocitySolver{last_bot_col,last_wall_col}=self;
         
-        
-        //let mut last_bot_col_new:Vec<(BotCollisionHash,A)>=Vec::new();
         let mut last_bot_col_new=BTreeMap::new();
         for (a,b) in last_bot_col.into_iter(){
             last_bot_col_new.insert(a,TryFrom::try_from(b)?);
@@ -104,7 +101,7 @@ impl CollisionVelocitySolver<f32>{
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut dinotree_alg::collectable::CollectableDinoTree<A,NotNan<f32>,T>,
+        tree:&mut broccoli::collections::TreeRefInd<A,NotNan<f32>,T>,
         pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
         vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
         
@@ -113,12 +110,12 @@ impl CollisionVelocitySolver<f32>{
         let bias_factor=0.3;
         let allowed_penetration=radius*0.2;
         let num_iterations=5;
-        let base=Fo(tree.get_bots().as_ptr());
+        let base=Fo(tree.get_elements().as_ptr());
 
         let mut collision_list={
             let ka3 = &self.last_bot_col;
             //TODO add _par
-            tree.collect_intersections_list(move |a:&mut T,b:&mut T|{
+            tree.collect_colliding_pairs(move |a,b|{
                 let p2=*pos_func(b);
                 let p1=*pos_func(a);
                 let offset=p2-p1;
@@ -216,7 +213,7 @@ impl CollisionVelocitySolver<f32>{
 
             
             //TODO add _par
-            collision_list.for_every_pair_mut(tree,|a,b,&mut (offset_normal,bias,ref mut acc)|{
+            collision_list.for_every_pair_mut(tree.get_elements_mut(),|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
                 let vel=*vel_func(b)-*vel_func(a);
 
@@ -235,7 +232,8 @@ impl CollisionVelocitySolver<f32>{
             });
                  
             //TODO add _par
-            wall_collisions.for_every_mut(tree,|bot,wall|{
+            for (bot,wall) in wall_collisions.get_mut(tree.get_elements_mut()).iter_mut(){
+                
                 
                 
                 for k in wall.collisions.iter_mut(){
@@ -250,7 +248,7 @@ impl CollisionVelocitySolver<f32>{
                         *vel_func(bot)+=offset_normal*impulse;
                     }
                 }; 
-            })
+            }
             
             
             
@@ -263,11 +261,11 @@ impl CollisionVelocitySolver<f32>{
         self.last_wall_col.clear();
 
 
-        let ka2=collision_list.get(&tree).iter().map(|(a,b,(_,_,impulse))|{
+        let ka2=collision_list.get(tree.get_elements()).iter().map(|(a,b,(_,_,impulse))|{
             (BotCollisionHash::new(base,*a,*b),*impulse)
         }).collect();
 
-        let ka3=wall_collisions.get(&tree).iter().flat_map(|(bot,wall)|{
+        let ka3=wall_collisions.get(tree.get_elements()).iter().flat_map(|(bot,wall)|{
             let k=wall.collisions.iter().filter(|a|a.is_some()).map(|a|a.unwrap());
             k.map(move |(_,_,dir,impulse)|{
                 (WallCollisionHash::new(base,*bot,dir),impulse)
