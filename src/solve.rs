@@ -170,7 +170,7 @@ impl CollisionVelocitySolver<f32>{
             //TODO add _par
             tree.collect_all(move |rect,a|{
                 
-                let arr=duckduckgeo::grid::collide::is_colliding(&walls,&grid_viewport,rect.as_ref(),radius);
+                let arr=duckduckgeo::grid::collide::is_colliding2(&walls,&grid_viewport,*pos_func(a),radius);
                 let create_collision=|bot:&mut T,dir:grid::CardDir,seperation:f32,offset_normal:Vec2<f32>|{
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-seperation+allowed_penetration).min(0.0));
 
