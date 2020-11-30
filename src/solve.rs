@@ -101,7 +101,7 @@ impl CollisionVelocitySolver<f32>{
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut broccoli::collections::TreeRefInd<A,N,T>,
+        tree:&mut broccoli::container::TreeRefInd<A,N,T>,
         pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
         vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
         
