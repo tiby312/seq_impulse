@@ -3,7 +3,6 @@ use serde::{Serialize, Deserialize};
 use axgeom::*;
 use axgeom::Axis;
 use std::collections::BTreeMap;
-use axgeom::ordered_float::*;
 use duckduckgeo::grid;
 
 
@@ -96,12 +95,12 @@ impl CollisionVelocitySolver<f32>{
 
 
 
-    pub fn solve<A:Axis,N:broccoli::Num,T:Send+Sync+core::fmt::Debug>(
+    pub fn solve<A:Axis,T:Send+Sync+core::fmt::Debug>(
         &mut self,
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut broccoli::container::TreeRefInd<A,N,T>,
+        tree:&mut broccoli::container::TreeRefInd<A,f32,T>,
         pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
         vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
         
@@ -170,7 +169,9 @@ impl CollisionVelocitySolver<f32>{
             //TODO add _par
             tree.collect_all(move |rect,a|{
                 
-                let arr=duckduckgeo::grid::collide::is_colliding2(&walls,&grid_viewport,*pos_func(a),radius);
+                let arr=duckduckgeo::grid::collide::is_colliding(&walls,&grid_viewport,&rect,radius);
+
+
                 let create_collision=|bot:&mut T,dir:grid::CardDir,seperation:f32,offset_normal:Vec2<f32>|{
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-seperation+allowed_penetration).min(0.0));
 
