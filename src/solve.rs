@@ -1,7 +1,6 @@
 use serde::{Serialize, Deserialize};
 
 use axgeom::*;
-use axgeom::Axis;
 use std::collections::BTreeMap;
 use duckduckgeo::grid;
 
@@ -95,12 +94,12 @@ impl CollisionVelocitySolver<f32>{
 
 
 
-    pub fn solve<A:Axis,T:Send+Sync+core::fmt::Debug>(
+    pub fn solve<T:Send+Sync+core::fmt::Debug>(
         &mut self,
         radius:f32,
         grid_viewport:&grid::GridViewPort,
         walls:&grid::Grid2D,
-        tree:&mut broccoli::container::TreeRefInd<A,f32,T>,
+        tree:&mut broccoli::container::TreeRefInd<f32,T>,
         pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
         vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
         
@@ -262,8 +261,8 @@ impl CollisionVelocitySolver<f32>{
         self.last_wall_col.clear();
 
 
-        let ka2=collision_list.get(tree.get_elements()).iter().map(|(a,b,(_,_,impulse))|{
-            (BotCollisionHash::new(base,*a,*b),*impulse)
+        let ka2=collision_list.get(tree.get_elements()).iter().map(|res|{
+            (BotCollisionHash::new(base,res.first,res.second),res.extra.2)
         }).collect();
 
         let ka3=wall_collisions.get(tree.get_elements()).iter().flat_map(|(bot,wall)|{
