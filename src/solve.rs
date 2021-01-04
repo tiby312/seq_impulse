@@ -108,12 +108,13 @@ impl CollisionVelocitySolver<f32>{
         let bias_factor=0.3;
         let allowed_penetration=radius*0.2;
         let num_iterations=5;
-        let base=Fo(tree.get_elements().as_ptr());
+        let base=Fo(tree.get_inner_elements().as_ptr());
 
         let mut collision_list={
             let ka3 = &self.last_bot_col;
             //TODO add _par
-            tree.collect_colliding_pairs(move |a,b|{
+            use broccoli::pmut::*;
+            tree.collect_colliding_pairs(move |a:&mut T,b:&mut T|{
                 let p2=*pos_func(b);
                 let p1=*pos_func(a);
                 let offset=p2-p1;
@@ -213,7 +214,7 @@ impl CollisionVelocitySolver<f32>{
 
             
             //TODO add _par
-            collision_list.for_every_pair_mut(tree.get_elements_mut(),|a,b,&mut (offset_normal,bias,ref mut acc)|{
+            collision_list.for_every_pair_mut(tree.get_inner_elements_mut(),|a,b,&mut (offset_normal,bias,ref mut acc)|{
                 
                 let vel=*vel_func(b)-*vel_func(a);
 
@@ -232,7 +233,7 @@ impl CollisionVelocitySolver<f32>{
             });
                  
             //TODO add _par
-            for (bot,wall) in wall_collisions.get_mut(tree.get_elements_mut()).iter_mut(){
+            for (bot,wall) in wall_collisions.get_mut(tree.get_inner_elements_mut()).iter_mut(){
                 
                 
                 
@@ -261,11 +262,11 @@ impl CollisionVelocitySolver<f32>{
         self.last_wall_col.clear();
 
 
-        let ka2=collision_list.get(tree.get_elements()).iter().map(|res|{
+        let ka2=collision_list.get(tree.get_inner_elements()).iter().map(|res|{
             (BotCollisionHash::new(base,res.first,res.second),res.extra.2)
         }).collect();
 
-        let ka3=wall_collisions.get(tree.get_elements()).iter().flat_map(|(bot,wall)|{
+        let ka3=wall_collisions.get(tree.get_inner_elements()).iter().flat_map(|(bot,wall)|{
             let k=wall.collisions.iter().filter(|a|a.is_some()).map(|a|a.unwrap());
             k.map(move |(_,_,dir,impulse)|{
                 (WallCollisionHash::new(base,*bot,dir),impulse)
