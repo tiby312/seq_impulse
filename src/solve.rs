@@ -3,7 +3,7 @@ use serde::{Serialize, Deserialize};
 use axgeom::*;
 use std::collections::BTreeMap;
 use duckduckgeo::grid;
-
+use broccoli::prelude::*;
 
 #[derive(Eq,PartialEq,Ord,PartialOrd,Hash,Serialize,Deserialize,Clone,Debug)]
 pub struct BotCollisionHash(u32);
