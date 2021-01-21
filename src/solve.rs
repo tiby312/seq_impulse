@@ -113,7 +113,6 @@ impl CollisionVelocitySolver<f32>{
         let mut collision_list={
             let ka3 = &self.last_bot_col;
             //TODO add _par
-            use broccoli::pmut::*;
             tree.collect_colliding_pairs(move |a:&mut T,b:&mut T|{
                 let p2=*pos_func(b);
                 let p1=*pos_func(a);
