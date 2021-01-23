@@ -7,10 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rayon="*"
 axgeom = "1.6"
 duckduckgeo={git="https://github.com/tiby312/duckduckgeo"}
-broccoli={git="https://github.com/tiby312/broccoli"}
+broccoli={git="https://github.com/tiby312/broccoli",default-features=false}
 serde = { version = "1.0", features = ["derive"] }
 
 
