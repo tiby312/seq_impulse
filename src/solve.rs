@@ -101,13 +101,14 @@ impl CollisionVelocitySolver<f32>{
         walls:&grid::Grid2D,
         tree:&mut broccoli::container::TreeInd<f32,T>,
         pos_func:impl Fn(&T)->&Vec2<f32> + Send + Sync +Copy,
-        vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy){
+        vel_func:impl Fn(&mut T)->&mut Vec2<f32> + Send + Sync +Copy,
+        collision_callback:impl Fn(&mut T,&mut T)+Send+Sync+Copy){
         
         let diameter=radius*2.0;
         let diameter2=diameter*diameter;
-        let bias_factor=0.3;
+        let bias_factor=0.7;
         let allowed_penetration=radius*0.2;
-        let num_iterations=5;
+        let num_iterations=3;
         let base=Fo(tree.get_inner_elements().as_ptr());
 
         let mut collision_list={
@@ -131,19 +132,26 @@ impl CollisionVelocitySolver<f32>{
                     };
 
                     let separation=(diameter-distance)/2.0;
+                    //TODO not sure why but this fixed it.
+                    let separation=separation*2.0;
                     let bias=-bias_factor*(1.0/num_iterations as f32)*( (-separation+allowed_penetration).min(0.0));
                     
                     let hash=BotCollisionHash::new(base,a,b);
                     //let impulse=20.0;
                     //let impulse=if true{
                     let impulse=if let Some(&impulse)=ka3.get(&hash){ //TODO inefficient to check if its none every time
-                    
+                        
+                        //continuously call while
+                        //we are touching.
+                        collision_callback(a,b);
+
                         let k=offset_normal*impulse;
                         
                         *vel_func(a)-=k;
                         *vel_func(b)+=k;
                         impulse
                     }else{
+                        
                         0.0
                     };
 
@@ -209,6 +217,7 @@ impl CollisionVelocitySolver<f32>{
         
 
         let mass=0.2;
+        //let mass=0.01;
         for _ in 0..num_iterations{
 
             
